@@ -1,0 +1,588 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Billing | MedBook Hospital System</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
+    <style>
+        .glass {
+            background: rgba(255,255,255,0.7);
+            backdrop-filter: blur(12px);
+        }
+        .pay-spinner {
+            border: 3px solid #fff;
+            border-top: 3px solid #2563eb;
+            border-radius: 50%;
+            width: 1.5rem;
+            height: 1.5rem;
+            animation: spin 0.7s linear infinite;
+            display: inline-block;
+            vertical-align: middle;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .support-fab {
+            position: fixed;
+            bottom: 2rem;
+            right: 2rem;
+            z-index: 50;
+            background: linear-gradient(135deg, #2563eb 60%, #38bdf8 100%);
+            color: #fff;
+            border-radius: 9999px;
+            box-shadow: 0 8px 32px rgba(37,99,235,0.25);
+            width: 64px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .support-fab:hover {
+            transform: scale(1.1) rotate(8deg);
+            box-shadow: 0 12px 40px rgba(37,99,235,0.35);
+        }
+        .popup {
+            position: fixed;
+            bottom: 6.5rem;
+            right: 2.5rem;
+            z-index: 50;
+            background: #fff;
+            border-radius: 1rem;
+            box-shadow: 0 8px 32px rgba(37,99,235,0.15);
+            width: 320px;
+            padding: 1.5rem;
+            display: none;
+            animation: fadeInUp 0.4s;
+        }
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px);}
+            to { opacity: 1; transform: none;}
+        }
+        .download-animate {
+            animation: bounce 0.5s;
+        }
+        @keyframes bounce {
+            0% { transform: scale(1);}
+            30% { transform: scale(1.2);}
+            60% { transform: scale(0.95);}
+            100% { transform: scale(1);}
+        }
+        @keyframes progress {
+            0% { width: 0; }
+            100% { width: 100%; }
+        }
+        .animate-progress {
+            animation: progress 2s infinite alternate;
+        }
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+</head>
+<body class="bg-gradient-to-br from-yellow-50 via-blue-50 to-blue-100 min-h-screen text-gray-800 font-sans">
+
+    <!-- Header -->
+    <header class="bg-blue-700 text-white py-8 shadow-lg">
+        <div class="container mx-auto px-4 flex flex-col md:flex-row items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class='bx bx-receipt text-4xl'></i>
+                <h1 class="text-3xl font-bold">Billing & Payments</h1>
+            </div>
+            <nav class="mt-4 md:mt-0">
+                <a href="index.hospital.html" class="text-white hover:underline mx-2">Home</a>
+                <a href="index.patientrecords.html" class="text-white hover:underline mx-2">Patient Records</a>
+                <a href="index.staffmanagment.html" class="text-white hover:underline mx-2">Staff</a>
+                <a href="index.appointments.html" class="text-white hover:underline mx-2">Appointments</a>
+                <a href="index.contacthospital.html" class="text-white hover:underline mx-2">Contact</a>
+            </nav>
+        </div>
+    </header>
+
+    <!-- Billing Overview -->
+    <section class="container mx-auto px-4 mt-10">
+        <div class="glass rounded-2xl shadow-2xl p-8 flex flex-col md:flex-row items-center justify-between gap-8">
+            <div>
+                <h2 class="text-2xl font-bold mb-2 text-blue-700 flex items-center gap-2"><i class='bx bx-wallet'></i> Outstanding Balance</h2>
+                <p class="text-4xl font-extrabold text-yellow-500 mb-2">$245.00</p>
+                <p class="text-gray-600">Last payment: <span class="font-semibold">April 18, 2025</span></p>
+            </div>
+            <div class="flex flex-col gap-4">
+                <button id="payNowBtn" class="bg-blue-600 text-white px-6 py-3 rounded-md font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow relative">
+                    <span id="payNowText"><i class='bx bx-credit-card'></i> Pay Now</span>
+                    <span id="paySpinner" class="pay-spinner absolute right-4 hidden"></span>
+                </button>
+                <button class="bg-gray-100 text-blue-700 px-6 py-3 rounded-md font-semibold hover:bg-blue-200 transition flex items-center gap-2 shadow">
+                    <i class='bx bx-history'></i> View Payment History
+                </button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Invoice Search -->
+    <section class="container mx-auto px-4 mt-10">
+        <div class="flex items-center bg-white rounded-xl shadow p-4 mb-4 ring-1 ring-blue-100 focus-within:ring-2 focus-within:ring-blue-400 transition">
+            <i class='bx bx-search text-2xl text-blue-600 mr-3'></i>
+            <input id="invoiceSearch" type="text" placeholder="Search invoices by number, date, or status..." class="w-full outline-none text-lg bg-transparent placeholder-blue-400" />
+        </div>
+    </section>
+
+    <!-- Recent Invoices -->
+    <section class="container mx-auto px-4">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-2xl font-bold mb-6 text-blue-700 flex items-center gap-2"><i class='bx bx-file'></i> Recent Invoices</h2>
+            <div class="overflow-x-auto">
+                <table class="min-w-full table-auto" id="invoiceTable">
+                    <thead class="bg-blue-600 text-white">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-sm font-medium uppercase">Invoice #</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium uppercase">Date</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium uppercase">Amount</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium uppercase">Status</th>
+                            <th class="px-6 py-3 text-left text-sm font-medium uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <tr class="invoice-row cursor-pointer hover:bg-blue-50 transition" data-details="Service: Consultation<br>Method: Credit Card">
+                            <td class="px-6 py-4 text-sm text-gray-700">INV-1023</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">2025-04-10</td>
+                            <td class="px-6 py-4 text-sm text-yellow-600 font-bold">$120.00</td>
+                            <td class="px-6 py-4 text-sm"><span class="bg-green-100 text-green-700 px-3 py-1 rounded-full">Paid</span></td>
+                            <td class="px-6 py-4 text-sm relative">
+                                <button class="action-menu-btn bg-transparent text-blue-700 hover:text-blue-900 p-1 rounded-full focus:outline-none">
+                                    <i class='bx bx-dots-horizontal-rounded text-2xl'></i>
+                                </button>
+                                <div class="action-menu absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-10 hidden">
+                                    <button class="download-btn w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2"><i class='bx bx-download'></i> Download</button>
+                                    <button class="view-details-btn w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2"><i class='bx bx-show'></i> View Details</button>
+                                    <button class="email-invoice-btn w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2"><i class='bx bx-envelope'></i> Email Invoice</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="invoice-details-row hidden">
+                            <td colspan="5" class="bg-blue-50 px-6 py-3 text-sm text-blue-700"></td>
+                        </tr>
+                        <tr class="invoice-row cursor-pointer hover:bg-blue-50 transition" data-details="Service: Surgery<br>Method: Cash">
+                            <td class="px-6 py-4 text-sm text-gray-700">INV-1022</td>
+                            <td class="px-6 py-4 text-sm text-gray-700">2025-03-28</td>
+                            <td class="px-6 py-4 text-sm text-yellow-600 font-bold">$125.00</td>
+                            <td class="px-6 py-4 text-sm">
+                                <span class="bg-yellow-100 text-yellow-700 px-3 py-1 rounded-full flex items-center gap-2">
+                                    Pending
+                                    <span class="relative w-16 h-2 bg-yellow-200 rounded overflow-hidden">
+                                        <span class="absolute left-0 top-0 h-2 bg-yellow-400 animate-progress w-1/2"></span>
+                                    </span>
+                                </span>
+                            </td>
+                            <td class="px-6 py-4 text-sm relative">
+                                <button class="action-menu-btn bg-transparent text-blue-700 hover:text-blue-900 p-1 rounded-full focus:outline-none">
+                                    <i class='bx bx-dots-horizontal-rounded text-2xl'></i>
+                                </button>
+                                <div class="action-menu absolute right-0 mt-2 w-40 bg-white border rounded shadow-lg z-10 hidden">
+                                    <button class="download-btn w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2"><i class='bx bx-download'></i> Download</button>
+                                    <button class="view-details-btn w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2"><i class='bx bx-show'></i> View Details</button>
+                                    <button class="email-invoice-btn w-full text-left px-4 py-2 hover:bg-blue-50 flex items-center gap-2"><i class='bx bx-envelope'></i> Email Invoice</button>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr class="invoice-details-row hidden">
+                            <td colspan="5" class="bg-blue-50 px-6 py-3 text-sm text-blue-700"></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </section>
+
+    <!-- FAQ Section -->
+    <section class="container mx-auto px-4 mt-10 mb-16">
+        <div class="bg-white rounded-lg shadow-lg p-8">
+            <h2 class="text-2xl font-bold mb-6 text-blue-700 flex items-center gap-2"><i class='bx bx-question-mark'></i> Billing FAQ</h2>
+            <div class="space-y-4">
+                <details class="group">
+                    <summary class="cursor-pointer font-semibold text-blue-700 group-hover:underline">How can I pay my bill?</summary>
+                    <p class="ml-4 mt-2 text-gray-700">Click the "Pay Now" button above and follow the secure payment process.</p>
+                </details>
+                <details class="group">
+                    <summary class="cursor-pointer font-semibold text-blue-700 group-hover:underline">Can I download my invoices?</summary>
+                    <p class="ml-4 mt-2 text-gray-700">Yes, click the "Download" button next to each invoice.</p>
+                </details>
+                <details class="group">
+                    <summary class="cursor-pointer font-semibold text-blue-700 group-hover:underline">Who do I contact for billing questions?</summary>
+                    <p class="ml-4 mt-2 text-gray-700">Email <a href="mailto:billing@medbook.com" class="text-blue-600 underline">billing@medbook.com</a> or call <a href="tel:+1234567890" class="text-blue-600 underline">+1 234 567 890</a>.</p>
+                </details>
+            </div>
+        </div>
+    </section>
+
+    <!-- Floating Support Button -->
+    <div class="support-fab" id="supportFab" title="Contact Support">
+        <i class='bx bx-support bx-tada'></i>
+    </div>
+    <div class="popup" id="supportPopup">
+        <div class="flex items-center justify-between mb-2">
+            <span class="font-bold text-blue-700 flex items-center gap-1"><i class='bx bx-support'></i> Support</span>
+            <button onclick="document.getElementById('supportPopup').style.display='none'" class="text-gray-400 hover:text-blue-700 text-xl">&times;</button>
+        </div>
+        <div class="mb-3 text-gray-700 text-sm">
+            <div class="mb-2"><span class="font-semibold text-blue-600">Need help?</span> Our team is here for you.</div>
+        </div>
+        <a href="mailto:billing@medbook.com" class="block bg-blue-600 text-white px-4 py-2 rounded mb-2 text-center hover:bg-blue-700 transition"><i class='bx bx-envelope'></i> Email Billing</a>
+        <a href="tel:+1234567890" class="block bg-blue-100 text-blue-700 px-4 py-2 rounded text-center hover:bg-blue-200 transition"><i class='bx bx-phone'></i> Call Us</a>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="paymentModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fadeIn">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-blue-700 flex items-center gap-2"><i class='bx bx-credit-card'></i> Pay Your Bill</h3>
+                <button onclick="closePaymentModal()" class="text-gray-400 hover:text-blue-700 text-2xl">&times;</button>
+            </div>
+            <form id="paymentForm" class="space-y-4">
+                <input type="text" id="cardNumber" maxlength="19" placeholder="Card Number" class="w-full border rounded px-3 py-2 focus:ring focus:ring-blue-200" required>
+                <div class="flex gap-2">
+                    <input type="text" id="expiry" maxlength="5" placeholder="MM/YY" class="w-1/2 border rounded px-3 py-2 focus:ring focus:ring-blue-200" required>
+                    <input type="text" id="cvc" maxlength="4" placeholder="CVC" class="w-1/2 border rounded px-3 py-2 focus:ring focus:ring-blue-200" required>
+                </div>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                    <span id="payBtnText">Pay $245.00</span>
+                    <span id="payBtnSpinner" class="pay-spinner hidden"></span>
+                </button>
+                <p id="payError" class="text-red-500 text-sm mt-2 hidden"></p>
+            </form>
+            <div id="paySuccess" class="hidden text-center mt-4">
+                <i class='bx bx-check-circle text-green-500 text-4xl mb-2 animate-bounce'></i>
+                <div class="text-green-700 font-bold">Payment Successful!</div>
+            </div>
+        </div>
+    </div>
+    <style>
+        .animate-fadeIn { animation: fadeInUp 0.4s; }
+    </style>
+
+    <!-- Email Invoice Modal -->
+    <div id="emailInvoiceModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-fadeIn">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-blue-700 flex items-center gap-2"><i class='bx bx-envelope'></i> Email Invoice</h3>
+                <button onclick="closeEmailInvoiceModal()" class="text-gray-400 hover:text-blue-700 text-2xl">&times;</button>
+            </div>
+            <form id="emailInvoiceForm" class="space-y-4">
+                <input type="email" id="invoiceEmail" placeholder="Recipient Email" class="w-full border rounded px-3 py-2 focus:ring focus:ring-blue-200" required>
+                <button type="submit" class="w-full bg-blue-600 text-white py-2 rounded font-semibold hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                    <span>Send Invoice</span>
+                </button>
+                <p id="emailInvoiceError" class="text-red-500 text-sm mt-2 hidden"></p>
+            </form>
+            <div id="emailInvoiceSuccess" class="hidden text-center mt-4">
+                <i class='bx bx-check-circle text-green-500 text-4xl mb-2 animate-bounce'></i>
+                <div class="text-green-700 font-bold">Invoice Sent!</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- PDF Preview Modal -->
+    <div id="pdfPreviewModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-2xl relative animate-fadeIn">
+            <button onclick="closePdfPreview()" class="absolute top-3 right-4 text-gray-400 hover:text-blue-700 text-2xl">&times;</button>
+            <h3 class="text-xl font-bold text-blue-700 mb-4 flex items-center gap-2"><i class='bx bx-file'></i> Invoice Preview</h3>
+            <iframe id="pdfFrame" src="" class="w-full h-96 border rounded"></iframe>
+        </div>
+    </div>
+
+    <!-- Payment Provider Modal -->
+    <div id="providerModal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-2xl shadow-2xl p-6 w-full max-w-md animate-fadeIn">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-blue-700 flex items-center gap-2"><i class='bx bx-credit-card'></i> Choose Payment Provider</h3>
+                <button onclick="closeProviderModal()" class="text-gray-400 hover:text-blue-700 text-2xl">&times;</button>
+            </div>
+            <div class="flex flex-col gap-4">
+                <button onclick="simulateProvider('Stripe')" class="w-full bg-indigo-600 text-white py-2 rounded font-semibold hover:bg-indigo-700 transition flex items-center justify-center gap-2">
+                    <i class='bx bxl-stripe'></i> Pay with Stripe
+                </button>
+                <button onclick="simulateProvider('PayPal')" class="w-full bg-yellow-400 text-blue-900 py-2 rounded font-semibold hover:bg-yellow-500 transition flex items-center justify-center gap-2">
+                    <i class='bx bxl-paypal'></i> Pay with PayPal
+                </button>
+            </div>
+        </div>
+    </div>
+    <script>
+        function openProviderModal() {
+            document.getElementById('providerModal').classList.remove('hidden');
+        }
+        function closeProviderModal() {
+            document.getElementById('providerModal').classList.add('hidden');
+        }
+        function simulateProvider(provider) {
+            showToast('Redirecting to ' + provider + '...');
+            closeProviderModal();
+            setTimeout(() => showToast(provider + ' payment completed!'), 2000);
+        }
+    </script>
+
+    <!-- Invoice PDF Template -->
+    <div id="invoicePdfTemplate" style="display:none; padding:2rem; font-family:sans-serif; width:400px; background:#fff; color:#222;">
+        <h2 style="color:#2563eb;">MedBook Hospital Invoice</h2>
+        <p><strong>Invoice #:</strong> <span id="pdfInvoiceNum"></span></p>
+        <p><strong>Date:</strong> <span id="pdfInvoiceDate"></span></p>
+        <p><strong>Amount:</strong> <span id="pdfInvoiceAmount"></span></p>
+        <p><strong>Status:</strong> <span id="pdfInvoiceStatus"></span></p>
+        <hr>
+        <div id="pdfInvoiceDetails"></div>
+        <p style="margin-top:2rem;">Thank you for choosing MedBook!</p>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-blue-800 text-white py-6">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2025 MedBook Hospital System. All rights reserved.</p>
+        </div>
+    </footer>
+    <div id="toast" class="fixed bottom-8 left-1/2 transform -translate-x-1/2 bg-green-600 text-white px-6 py-3 rounded shadow-lg z-50 hidden flex items-center gap-2">
+        <i class='bx bx-check-circle text-2xl'></i>
+        <span id="toastMsg"></span>
+    </div>
+    <!-- Add this button for demo/testing -->
+    <button onclick="showToast('New invoice INV-1024 added!')" class="fixed bottom-24 left-4 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50 hover:bg-green-700 transition">Simulate New Invoice</button>
+    <script>
+        // Pay Now button animation
+        document.getElementById('payNowBtn').addEventListener('click', function() {
+            const payText = document.getElementById('payNowText');
+            const spinner = document.getElementById('paySpinner');
+            payText.style.opacity = 0.5;
+            spinner.classList.remove('hidden');
+            setTimeout(() => {
+                spinner.classList.add('hidden');
+                payText.style.opacity = 1;
+                alert('Payment processed successfully!');
+            }, 1800);
+        });
+
+        // Invoice search/filter
+        document.getElementById('invoiceSearch').addEventListener('input', function() {
+            const val = this.value.toLowerCase();
+            document.querySelectorAll('#invoiceTable tbody tr').forEach(row => {
+                row.style.display = Array.from(row.children).some(td =>
+                    td.textContent.toLowerCase().includes(val)
+                ) ? '' : 'none';
+            });
+        });
+
+        // Download animation
+        document.querySelectorAll('.download-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                btn.classList.add('download-animate');
+                setTimeout(() => btn.classList.remove('download-animate'), 500);
+                showToast('Invoice downloaded!');
+            });
+        });
+
+        // Support FAB popup
+        const fab = document.getElementById('supportFab');
+        const popup = document.getElementById('supportPopup');
+        fab.addEventListener('click', () => {
+            popup.style.display = popup.style.display === 'block' ? 'none' : 'block';
+        });
+        // Optional: close popup when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!fab.contains(e.target) && !popup.contains(e.target)) {
+                popup.style.display = 'none';
+            }
+        });
+
+        // Payment Modal
+        function openPaymentModal() {
+            document.getElementById('paymentModal').classList.remove('hidden');
+        }
+        function closePaymentModal() {
+            document.getElementById('paymentModal').classList.add('hidden');
+            document.getElementById('paySuccess').classList.add('hidden');
+            document.getElementById('paymentForm').classList.remove('hidden');
+            document.getElementById('payError').classList.add('hidden');
+        }
+        document.getElementById('payNowBtn').onclick = function(e) {
+            e.preventDefault();
+            openPaymentModal();
+        };
+        document.getElementById('paymentForm').onsubmit = function(e) {
+            e.preventDefault();
+            const card = document.getElementById('cardNumber').value.replace(/\s/g, '');
+            const expiry = document.getElementById('expiry').value;
+            const cvc = document.getElementById('cvc').value;
+            const error = document.getElementById('payError');
+            error.classList.add('hidden');
+            if (!/^\d{16}$/.test(card)) {
+                error.textContent = "Invalid card number.";
+                error.classList.remove('hidden');
+                return;
+            }
+            if (!/^\d{2}\/\d{2}$/.test(expiry)) {
+                error.textContent = "Invalid expiry date.";
+                error.classList.remove('hidden');
+                return;
+            }
+            if (!/^\d{3,4}$/.test(cvc)) {
+                error.textContent = "Invalid CVC.";
+                error.classList.remove('hidden');
+                return;
+            }
+            document.getElementById('payBtnText').style.opacity = 0.5;
+            document.getElementById('payBtnSpinner').classList.remove('hidden');
+            setTimeout(() => {
+                document.getElementById('payBtnSpinner').classList.add('hidden');
+                document.getElementById('payBtnText').style.opacity = 1;
+                document.getElementById('paymentForm').classList.add('hidden');
+                document.getElementById('paySuccess').classList.remove('hidden');
+                setTimeout(closePaymentModal, 1800);
+            }, 1500);
+        };
+
+        // Action menu toggle
+        document.querySelectorAll('.action-menu-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                document.querySelectorAll('.action-menu').forEach(menu => menu.classList.add('hidden'));
+                btn.nextElementSibling.classList.toggle('hidden');
+            });
+        });
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.action-menu').forEach(menu => menu.classList.add('hidden'));
+        });
+
+        // Download animation and toast
+        document.querySelectorAll('.download-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                btn.classList.add('download-animate');
+                setTimeout(() => btn.classList.remove('download-animate'), 500);
+                showToast('Invoice downloaded!');
+            });
+        });
+
+        // View details (expand row)
+        document.querySelectorAll('.view-details-btn').forEach((btn, idx) => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                const row = btn.closest('tr').parentElement.querySelectorAll('.invoice-details-row')[idx];
+                if (row.classList.contains('hidden')) {
+                    row.querySelector('td').innerHTML = btn.closest('tr').dataset.details;
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        });
+
+        // Email invoice modal
+        let currentInvoice = null;
+        document.querySelectorAll('.email-invoice-btn').forEach((btn, idx) => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                currentInvoice = btn.closest('tr').querySelector('td').textContent;
+                openEmailInvoiceModal();
+            });
+        });
+        function openEmailInvoiceModal() {
+            document.getElementById('emailInvoiceModal').classList.remove('hidden');
+            document.getElementById('emailInvoiceForm').classList.remove('hidden');
+            document.getElementById('emailInvoiceSuccess').classList.add('hidden');
+            document.getElementById('emailInvoiceError').classList.add('hidden');
+        }
+        function closeEmailInvoiceModal() {
+            document.getElementById('emailInvoiceModal').classList.add('hidden');
+        }
+        document.getElementById('emailInvoiceForm').onsubmit = function(e) {
+            e.preventDefault();
+            const email = document.getElementById('invoiceEmail').value;
+            const error = document.getElementById('emailInvoiceError');
+            error.classList.add('hidden');
+            if (!/^[^@]+@[^@]+\.[^@]+$/.test(email)) {
+                error.textContent = "Invalid email address.";
+                error.classList.remove('hidden');
+                return;
+            }
+            document.getElementById('emailInvoiceForm').classList.add('hidden');
+            document.getElementById('emailInvoiceSuccess').classList.remove('hidden');
+            showToast('Invoice sent to ' + email + '!');
+            setTimeout(closeEmailInvoiceModal, 1800);
+        };
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMsg').textContent = msg;
+            toast.classList.remove('hidden');
+            setTimeout(() => toast.classList.add('hidden'), 2000);
+        }
+
+        // Invoice details toggle
+        document.querySelectorAll('.invoice-row').forEach((row, idx) => {
+            row.addEventListener('click', function() {
+                const detailsRow = row.nextElementSibling;
+                if (detailsRow.classList.contains('hidden')) {
+                    detailsRow.querySelector('td').innerHTML = row.dataset.details;
+                    detailsRow.classList.remove('hidden');
+                } else {
+                    detailsRow.classList.add('hidden');
+                }
+            });
+        });
+
+        // PDF Preview Modal
+        function openPdfPreview(pdfUrl) {
+            document.getElementById('pdfFrame').src = pdfUrl;
+            document.getElementById('pdfPreviewModal').classList.remove('hidden');
+        }
+        function closePdfPreview() {
+            document.getElementById('pdfPreviewModal').classList.add('hidden');
+            document.getElementById('pdfFrame').src = "";
+        }
+        document.querySelectorAll('.download-btn').forEach(btn => {
+            btn.addEventListener('contextmenu', function(e) {
+                e.preventDefault();
+                openPdfPreview('https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf');
+            });
+        });
+
+        // Generate PDF from invoice data
+        document.querySelectorAll('.download-btn').forEach(btn => {
+            btn.addEventListener('click', function(e) {
+                e.stopPropagation();
+                // Get invoice data from the row
+                const row = btn.closest('tr');
+                const invoiceNum = row.children[0].textContent;
+                const invoiceDate = row.children[1].textContent;
+                const invoiceAmount = row.children[2].textContent;
+                const invoiceStatus = row.children[3].textContent.trim();
+                const invoiceDetails = row.dataset.details || '';
+
+                // Fill the template
+                document.getElementById('pdfInvoiceNum').textContent = invoiceNum;
+                document.getElementById('pdfInvoiceDate').textContent = invoiceDate;
+                document.getElementById('pdfInvoiceAmount').textContent = invoiceAmount;
+                document.getElementById('pdfInvoiceStatus').textContent = invoiceStatus;
+                document.getElementById('pdfInvoiceDetails').innerHTML = invoiceDetails;
+
+                // Generate PDF from the template
+                const template = document.getElementById('invoicePdfTemplate');
+                template.style.display = 'block';
+                html2canvas(template).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new window.jspdf.jsPDF({
+                        orientation: 'portrait',
+                        unit: 'pt',
+                        format: [canvas.width, canvas.height]
+                    });
+                    pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+                    pdf.save(`${invoiceNum}.pdf`);
+                    template.style.display = 'none';
+                });
+            });
+        });
+    </script>
+</body>
+</html>
